@@ -122,7 +122,7 @@ Process::id_type Process::open(const string_type &command, const string_type &pa
   process_command += "\"";
 #endif
 
-  DWORD creation_flags = CREATE_NO_WINDOW;
+  DWORD creation_flags = stdin_fd || stdout_fd || stderr_fd ? CREATE_NO_WINDOW : 0;  // CREATE_NO_WINDOW cannot be used when stdout or stderr is redirected to parent process
   string_type environment_str;
   if(environment) {
 #ifdef UNICODE
@@ -138,7 +138,7 @@ Process::id_type Process::open(const string_type &command, const string_type &pa
   }
   BOOL bSuccess = CreateProcess(nullptr, process_command.empty() ? nullptr : &process_command[0], nullptr, nullptr,
                                 stdin_fd || stdout_fd || stderr_fd || config.inherit_file_descriptors, // Cannot be false when stdout, stderr or stdin is used
-                                stdin_fd || stdout_fd || stderr_fd ? creation_flags : 0,               // CREATE_NO_WINDOW cannot be used when stdout or stderr is redirected to parent process
+                                creation_flags,
                                 environment_str.empty() ? nullptr : &environment_str[0],
                                 path.empty() ? nullptr : path.c_str(),
                                 &startup_info, &process_info);
