@@ -128,12 +128,14 @@ Process::id_type Process::open(const string_type &command, const string_type &pa
 #ifdef UNICODE
     for(const auto &e : *environment)
       environment_str += e.first + L'=' + e.second + L'\0';
-    environment_str += L'\0';
+    if (environment_str.size())
+      environment_str += L'\0';
     creation_flags |= CREATE_UNICODE_ENVIRONMENT;
 #else
     for(const auto &e : *environment)
       environment_str += e.first + '=' + e.second + '\0';
-    environment_str += '\0';
+    if (environment_str.size())
+      environment_str += '\0';
 #endif
   }
   BOOL bSuccess = CreateProcess(nullptr, process_command.empty() ? nullptr : &process_command[0], nullptr, nullptr,
