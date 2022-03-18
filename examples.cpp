@@ -6,7 +6,7 @@ using namespace TinyProcessLib;
 
 int main() {
 #if !defined(_WIN32) || defined(MSYS_PROCESS_USE_SH)
-  //The following examples are for Unix-like systems and Windows through MSYS2
+  // The following examples are for Unix-like systems and Windows through MSYS2
 
 
   cout << "Example 1a - the mandatory Hello World through a command" << endl;
@@ -54,7 +54,7 @@ int main() {
       },
       [](const char *bytes, size_t n) {
         cout << "Output from stderr: " << string(bytes, n);
-        //add a newline for prettier output on some platforms:
+        // Add a newline for prettier output on some platforms:
         if(bytes[n - 1] != '\n')
           cout << endl;
       });
@@ -96,7 +96,7 @@ int main() {
       },
       [](const char *bytes, size_t n) {
         cout << "Output from stderr: " << string(bytes, n);
-        //add a newline for prettier output on some platforms:
+        // Add a newline for prettier output on some platforms:
         if(bytes[n - 1] != '\n')
           cout << endl;
       });
@@ -166,7 +166,7 @@ int main() {
 
 
 #else
-  //Examples for Windows without MSYS2
+  // Examples for Windows without MSYS2
 
 
   cout << "Example 1 - the mandatory Hello World" << endl;
@@ -187,7 +187,7 @@ int main() {
       },
       [](const char *bytes, size_t n) {
         cout << "Output from stderr: " << string(bytes, n);
-        //add a newline for prettier output on some platforms:
+        // Add a newline for prettier output on some platforms:
         if(bytes[n - 1] != '\n')
           cout << endl;
       });
