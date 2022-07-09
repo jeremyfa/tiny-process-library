@@ -7,6 +7,7 @@ if(CMAKE_SOURCE_DIR STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
 else()
   option(BUILD_TESTING "set ON to build library tests" OFF)
 endif()
+option(FLATPAK_SANDBOX "Runs from within a flatpak sandbox")
 
 add_library(tiny-process-library process.cpp)
 add_library(tiny-process-library::tiny-process-library ALIAS tiny-process-library)
@@ -15,6 +16,10 @@ if(MSVC)
   target_compile_definitions(tiny-process-library PRIVATE /D_CRT_SECURE_NO_WARNINGS)
 else()
   target_compile_options(tiny-process-library PRIVATE -std=c++11 -Wall -Wextra)
+endif()
+
+if(FLATPAK_SANDBOX)
+  target_compile_definitions(tiny-process-library PRIVATE FLATPAK_SANDBOX=1)
 endif()
 
 if(WIN32)
@@ -44,7 +49,11 @@ if(CMAKE_SOURCE_DIR STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
 
   add_executable(examples examples.cpp)
   target_link_libraries(examples tiny-process-library)
-  
+
+  if(FLATPAK_SANDBOX)
+    target_compile_definitions(examples PRIVATE FLATPAK_SANDBOX=1)
+  endif()
+
   install(TARGETS tiny-process-library
     EXPORT ${PROJECT_NAME}-config
     ARCHIVE DESTINATION lib

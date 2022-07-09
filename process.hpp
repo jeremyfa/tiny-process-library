@@ -104,7 +104,7 @@ public:
           std::function<void(const char *bytes, size_t n)> read_stderr = nullptr,
           bool open_stdin = false,
           const Config &config = {}) noexcept; /// Starts a process with specified environment.
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(FLATPAK_SANDBOX)
   /// Starts a process with the environment of the calling process.
   /// Supported on Unix-like systems only.
   Process(const std::function<void()> &function,

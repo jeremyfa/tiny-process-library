@@ -2,6 +2,9 @@ include_directories(..)
 
 add_executable(tpl_io_test io_test.cpp)
 target_link_libraries(tpl_io_test tiny-process-library)
+if(FLATPAK_SANDBOX)
+  target_compile_definitions(tpl_io_test PRIVATE FLATPAK_SANDBOX=1)
+endif()
 add_test(tpl_io_test tpl_io_test)
 
 add_executable(tpl_open_close_test open_close_test.cpp)

@@ -49,7 +49,7 @@ int main() {
     output->clear();
   }
 
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(FLATPAK_SANDBOX)
   {
     Process process("pwd", "/usr", [output](const char *bytes, size_t n) {
       *output += string(bytes, n);

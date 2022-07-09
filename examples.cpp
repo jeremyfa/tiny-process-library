@@ -28,7 +28,7 @@ int main() {
   this_thread::sleep_for(chrono::seconds(2));
 
 
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(FLATPAK_SANDBOX)
   cout << endl
        << "Example 1c - Hello World through a function on Unix-like systems" << endl;
   Process process1c(

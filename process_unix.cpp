@@ -13,6 +13,7 @@ namespace TinyProcessLib {
 
 Process::Data::Data() noexcept : id(-1) {}
 
+#ifndef FLATPAK_SANDBOX
 Process::Process(const std::function<void()> &function,
                  std::function<void(const char *, size_t)> read_stdout,
                  std::function<void(const char *, size_t)> read_stderr,
@@ -21,6 +22,7 @@ Process::Process(const std::function<void()> &function,
   open(function);
   async_read();
 }
+#endif
 
 Process::id_type Process::open(const std::function<void()> &function) noexcept {
   if(open_stdin)
@@ -134,7 +136,14 @@ Process::id_type Process::open(const std::vector<string_type> &arguments, const 
       exit(127);
 
     std::vector<const char *> argv_ptrs;
+#ifdef FLATPAK_SANDBOX
+    // break out of sandbox, execute on host
+    argv_ptrs.reserve(arguments.size() + 3);
+    argv_ptrs.emplace_back("/usr/bin/flatpak-spawn");
+    argv_ptrs.emplace_back("--host");
+#else
     argv_ptrs.reserve(arguments.size() + 1);
+#endif
     for(auto &argument : arguments)
       argv_ptrs.emplace_back(argument.c_str());
     argv_ptrs.emplace_back(nullptr);
@@ -145,7 +154,7 @@ Process::id_type Process::open(const std::vector<string_type> &arguments, const 
     }
 
     if(!environment)
-      execv(arguments[0].c_str(), const_cast<char *const *>(argv_ptrs.data()));
+      execv(argv_ptrs[0], const_cast<char *const *>(argv_ptrs.data()));
     else {
       std::vector<std::string> env_strs;
       std::vector<const char *> env_ptrs;
@@ -157,7 +166,7 @@ Process::id_type Process::open(const std::vector<string_type> &arguments, const 
       }
       env_ptrs.emplace_back(nullptr);
 
-      execve(arguments[0].c_str(), const_cast<char *const *>(argv_ptrs.data()), const_cast<char *const *>(env_ptrs.data()));
+      execve(argv_ptrs[0], const_cast<char *const *>(argv_ptrs.data()), const_cast<char *const *>(env_ptrs.data()));
     }
   });
 }
@@ -179,7 +188,12 @@ Process::id_type Process::open(const std::string &command, const std::string &pa
     }
 
     if(!environment)
+#ifdef FLATPAK_SANDBOX
+      // break out of sandbox, execute on host
+      execl("/usr/bin/flatpak-spawn", "/usr/bin/flatpak-spawn", "--host", "/bin/sh", "-c", command_c_str, nullptr);
+#else
       execl("/bin/sh", "/bin/sh", "-c", command_c_str, nullptr);
+#endif
     else {
       std::vector<std::string> env_strs;
       std::vector<const char *> env_ptrs;
@@ -190,7 +204,12 @@ Process::id_type Process::open(const std::string &command, const std::string &pa
         env_ptrs.emplace_back(env_strs.back().c_str());
       }
       env_ptrs.emplace_back(nullptr);
+#ifdef FLATPAK_SANDBOX
+      // break out of sandbox, execute on host
+      execle("/usr/bin/flatpak-spawn", "/usr/bin/flatpak-spawn", "--host", "/bin/sh", "-c", command_c_str, nullptr, env_ptrs.data());
+#else
       execle("/bin/sh", "/bin/sh", "-c", command_c_str, nullptr, env_ptrs.data());
+#endif
     }
   });
 }
