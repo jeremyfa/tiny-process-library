@@ -13,16 +13,16 @@ namespace TinyProcessLib {
 
 Process::Data::Data() noexcept : id(-1) {}
 
-#ifndef FLATPAK_SANDBOX
 Process::Process(const std::function<void()> &function,
                  std::function<void(const char *, size_t)> read_stdout,
                  std::function<void(const char *, size_t)> read_stderr,
-                 bool open_stdin, const Config &config) noexcept
+                 bool open_stdin, const Config &config)
     : closed(true), read_stdout(std::move(read_stdout)), read_stderr(std::move(read_stderr)), open_stdin(open_stdin), config(config) {
+  if(config.flatpak_spawn_host)
+    throw std::invalid_argument("Can't break out of a flatpak sandbox with this overload.");
   open(function);
   async_read();
 }
-#endif
 
 Process::id_type Process::open(const std::function<void()> &function) noexcept {
   if(open_stdin)
@@ -131,19 +131,21 @@ Process::id_type Process::open(const std::function<void()> &function) noexcept {
 }
 
 Process::id_type Process::open(const std::vector<string_type> &arguments, const string_type &path, const environment_type *environment) noexcept {
-  return open([&arguments, &path, &environment] {
+  return open([this, &arguments, &path, &environment] {
     if(arguments.empty())
       exit(127);
 
     std::vector<const char *> argv_ptrs;
-#ifdef FLATPAK_SANDBOX
-    // break out of sandbox, execute on host
-    argv_ptrs.reserve(arguments.size() + 3);
-    argv_ptrs.emplace_back("/usr/bin/flatpak-spawn");
-    argv_ptrs.emplace_back("--host");
-#else
-    argv_ptrs.reserve(arguments.size() + 1);
-#endif
+
+    if (config.flatpak_spawn_host) {
+      // break out of sandbox, execute on host
+      argv_ptrs.reserve(arguments.size() + 3);
+      argv_ptrs.emplace_back("/usr/bin/flatpak-spawn");
+      argv_ptrs.emplace_back("--host");
+    }
+    else
+      argv_ptrs.reserve(arguments.size() + 1);
+
     for(auto &argument : arguments)
       argv_ptrs.emplace_back(argument.c_str());
     argv_ptrs.emplace_back(nullptr);
@@ -172,7 +174,7 @@ Process::id_type Process::open(const std::vector<string_type> &arguments, const 
 }
 
 Process::id_type Process::open(const std::string &command, const std::string &path, const environment_type *environment) noexcept {
-  return open([&command, &path, &environment] {
+  return open([this, &command, &path, &environment] {
     auto command_c_str = command.c_str();
     std::string cd_path_and_command;
     if(!path.empty()) {
@@ -187,13 +189,13 @@ Process::id_type Process::open(const std::string &command, const std::string &pa
       command_c_str = cd_path_and_command.c_str();
     }
 
-    if(!environment)
-#ifdef FLATPAK_SANDBOX
-      // break out of sandbox, execute on host
-      execl("/usr/bin/flatpak-spawn", "/usr/bin/flatpak-spawn", "--host", "/bin/sh", "-c", command_c_str, nullptr);
-#else
-      execl("/bin/sh", "/bin/sh", "-c", command_c_str, nullptr);
-#endif
+    if(!environment) {
+      if(config.flatpak_spawn_host)
+        // break out of sandbox, execute on host
+        execl("/usr/bin/flatpak-spawn", "/usr/bin/flatpak-spawn", "--host", "/bin/sh", "-c", command_c_str, nullptr);
+      else
+        execl("/bin/sh", "/bin/sh", "-c", command_c_str, nullptr);
+    }
     else {
       std::vector<std::string> env_strs;
       std::vector<const char *> env_ptrs;
@@ -204,12 +206,11 @@ Process::id_type Process::open(const std::string &command, const std::string &pa
         env_ptrs.emplace_back(env_strs.back().c_str());
       }
       env_ptrs.emplace_back(nullptr);
-#ifdef FLATPAK_SANDBOX
-      // break out of sandbox, execute on host
-      execle("/usr/bin/flatpak-spawn", "/usr/bin/flatpak-spawn", "--host", "/bin/sh", "-c", command_c_str, nullptr, env_ptrs.data());
-#else
-      execle("/bin/sh", "/bin/sh", "-c", command_c_str, nullptr, env_ptrs.data());
-#endif
+      if (config.flatpak_spawn_host)
+        // break out of sandbox, execute on host
+        execle("/usr/bin/flatpak-spawn", "/usr/bin/flatpak-spawn", "--host", "/bin/sh", "-c", command_c_str, nullptr, env_ptrs.data());
+      else
+        execle("/bin/sh", "/bin/sh", "-c", command_c_str, nullptr, env_ptrs.data());
     }
   });
 }

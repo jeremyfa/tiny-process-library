@@ -40,6 +40,12 @@ struct Config {
   };
   /// On Windows only: controls how the window is shown.
   ShowWindow show_window{ShowWindow::show_default};
+
+  /// Set to true to break out of flatpak sandbox by prepending all commands with `/usr/bin/flatpak-spawn --host`
+  /// which will execute the command line on the host system.
+  /// Requires the flatpak `org.freedesktop.Flatpak` portal to be opened for the current sandbox.
+  /// See https://docs.flatpak.org/en/latest/flatpak-command-reference.html#flatpak-spawn
+  bool flatpak_spawn_host = false;
 };
 
 /// Platform independent class for creating processes.
@@ -104,14 +110,16 @@ public:
           std::function<void(const char *bytes, size_t n)> read_stderr = nullptr,
           bool open_stdin = false,
           const Config &config = {}) noexcept; /// Starts a process with specified environment.
-#if !defined(_WIN32) && !defined(FLATPAK_SANDBOX)
+#ifndef _WIN32
   /// Starts a process with the environment of the calling process.
   /// Supported on Unix-like systems only.
+  /// Since the command line is not known to the Process object itself,
+  /// this overload does not support the flatpak_spawn_host configuration.
   Process(const std::function<void()> &function,
           std::function<void(const char *bytes, size_t n)> read_stdout = nullptr,
           std::function<void(const char *bytes, size_t n)> read_stderr = nullptr,
           bool open_stdin = false,
-          const Config &config = {}) noexcept;
+          const Config &config = {});
 #endif
   ~Process() noexcept;
 
