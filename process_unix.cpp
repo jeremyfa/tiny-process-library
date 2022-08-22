@@ -19,7 +19,7 @@ Process::Process(const std::function<void()> &function,
                  bool open_stdin, const Config &config)
     : closed(true), read_stdout(std::move(read_stdout)), read_stderr(std::move(read_stderr)), open_stdin(open_stdin), config(config) {
   if(config.flatpak_spawn_host)
-    throw std::invalid_argument("Can't break out of a flatpak sandbox with this overload.");
+    throw std::invalid_argument("Cannot break out of a flatpak sandbox with this overload.");
   open(function);
   async_read();
 }
@@ -137,7 +137,7 @@ Process::id_type Process::open(const std::vector<string_type> &arguments, const 
 
     std::vector<const char *> argv_ptrs;
 
-    if (config.flatpak_spawn_host) {
+    if(config.flatpak_spawn_host) {
       // break out of sandbox, execute on host
       argv_ptrs.reserve(arguments.size() + 3);
       argv_ptrs.emplace_back("/usr/bin/flatpak-spawn");
@@ -156,7 +156,7 @@ Process::id_type Process::open(const std::vector<string_type> &arguments, const 
     }
 
     if(!environment)
-      execv(argv_ptrs[0], const_cast<char *const *>(argv_ptrs.data()));
+      execv(arguments[0].c_str(), const_cast<char *const *>(argv_ptrs.data()));
     else {
       std::vector<std::string> env_strs;
       std::vector<const char *> env_ptrs;
@@ -168,7 +168,7 @@ Process::id_type Process::open(const std::vector<string_type> &arguments, const 
       }
       env_ptrs.emplace_back(nullptr);
 
-      execve(argv_ptrs[0], const_cast<char *const *>(argv_ptrs.data()), const_cast<char *const *>(env_ptrs.data()));
+      execve(arguments[0].c_str(), const_cast<char *const *>(argv_ptrs.data()), const_cast<char *const *>(env_ptrs.data()));
     }
   });
 }
@@ -206,7 +206,7 @@ Process::id_type Process::open(const std::string &command, const std::string &pa
         env_ptrs.emplace_back(env_strs.back().c_str());
       }
       env_ptrs.emplace_back(nullptr);
-      if (config.flatpak_spawn_host)
+      if(config.flatpak_spawn_host)
         // break out of sandbox, execute on host
         execle("/usr/bin/flatpak-spawn", "/usr/bin/flatpak-spawn", "--host", "/bin/sh", "-c", command_c_str, nullptr, env_ptrs.data());
       else

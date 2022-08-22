@@ -44,7 +44,7 @@ struct Config {
   /// Set to true to break out of flatpak sandbox by prepending all commands with `/usr/bin/flatpak-spawn --host`
   /// which will execute the command line on the host system.
   /// Requires the flatpak `org.freedesktop.Flatpak` portal to be opened for the current sandbox.
-  /// See https://docs.flatpak.org/en/latest/flatpak-command-reference.html#flatpak-spawn
+  /// See https://docs.flatpak.org/en/latest/flatpak-command-reference.html#flatpak-spawn.
   bool flatpak_spawn_host = false;
 };
 
@@ -109,7 +109,7 @@ public:
           std::function<void(const char *bytes, size_t n)> read_stdout = nullptr,
           std::function<void(const char *bytes, size_t n)> read_stderr = nullptr,
           bool open_stdin = false,
-          const Config &config = {}) noexcept; /// Starts a process with specified environment.
+          const Config &config = {}) noexcept;
 #ifndef _WIN32
   /// Starts a process with the environment of the calling process.
   /// Supported on Unix-like systems only.
