@@ -11,3 +11,7 @@ add_test(tpl_open_close_test tpl_open_close_test)
 add_executable(tpl_multithread_test multithread_test.cpp)
 target_link_libraries(tpl_multithread_test tiny-process-library)
 add_test(tpl_multithread_test tpl_multithread_test)
+
+add_executable(tpl_path_test path_test.cpp)
+target_link_libraries(tpl_path_test tiny-process-library)
+add_test(tpl_path_test tpl_path_test)

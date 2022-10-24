@@ -2,16 +2,109 @@
 #include <algorithm>
 #include <bitset>
 #include <cstdlib>
+#include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <poll.h>
 #include <set>
 #include <signal.h>
 #include <stdexcept>
+#include <string.h>
 #include <unistd.h>
 
 namespace TinyProcessLib {
 
-Process::Data::Data() noexcept : id(-1) {}
+static int portable_execvpe(const char *file, char *const argv[],
+                            char *const envp[]) {
+#ifdef __GLIBC__
+  // Prefer native implementation.
+  return execvpe(file, argv, envp);
+#else
+  if(!file || !*file) {
+    errno = ENOENT;
+    return -1;
+  }
+
+  if(strchr(file, '/') != nullptr) {
+    // If file contains a slash, no search is needed.
+    return execve(file, argv, envp);
+  }
+
+  const char *path = getenv("PATH");
+  char cspath[PATH_MAX + 1] = {};
+  if(!path) {
+    // If env variable is not set, use static path string.
+    confstr(_CS_PATH, cspath, sizeof(cspath));
+    path = cspath;
+  }
+
+  const size_t path_len = strlen(path);
+  const size_t file_len = strlen(file);
+
+  if(file_len > NAME_MAX) {
+    errno = ENAMETOOLONG;
+    return -1;
+  }
+
+  // Indicates whether we encountered EACCESS at least once.
+  bool eacces = false;
+
+  const char *curr = nullptr;
+  const char *next = nullptr;
+
+  for(curr = path; *curr; curr = *next ? next + 1 : next) {
+    next = strchr(curr, ':');
+    if(!next) {
+      next = path + path_len;
+    }
+
+    const size_t sz = (next - curr);
+    if(sz > PATH_MAX) {
+      // Path is too long. Proceed to next path in list.
+      continue;
+    }
+
+    char exe_path[PATH_MAX + 1 + NAME_MAX + 1]; // 1 byte for slash + 1 byte for \0
+    memcpy(exe_path, curr, sz);
+    exe_path[sz] = '/';
+    memcpy(exe_path + sz + 1, file, file_len);
+    exe_path[sz + 1 + file_len] = '\0';
+
+    execve(exe_path, argv, envp);
+
+    switch(errno) {
+    case EACCES:
+      eacces = true;
+    case ENOENT:
+    case ESTALE:
+    case ENOTDIR:
+    case ENODEV:
+    case ETIMEDOUT:
+      // The errors above indicate that the executable was not found.
+      // The list of errors replicates one from glibc.
+      // In this case we proceed to next path in list.
+      break;
+
+    default:
+      // Other errors indicate that executable was found but failed
+      // to execute. In this case we return error.
+      return -1;
+    }
+  }
+
+  if(eacces) {
+    // If search failed, and at least one iteration reported EACCESS, it means
+    // that the needed executable exists but does not have suitable permissions.
+    // In this case we report EACEESS for user.
+    errno = EACCES;
+  }
+  // Otherwise we just keep last encountered errno.
+  return -1;
+#endif
+}
+
+Process::Data::Data() noexcept : id(-1) {
+}
 
 Process::Process(const std::function<void()> &function,
                  std::function<void(const char *, size_t)> read_stdout,
@@ -156,7 +249,7 @@ Process::id_type Process::open(const std::vector<string_type> &arguments, const 
     }
 
     if(!environment)
-      execv(argv_ptrs[0], const_cast<char *const *>(argv_ptrs.data()));
+      execvp(argv_ptrs[0], const_cast<char *const *>(argv_ptrs.data()));
     else {
       std::vector<std::string> env_strs;
       std::vector<const char *> env_ptrs;
@@ -168,7 +261,7 @@ Process::id_type Process::open(const std::vector<string_type> &arguments, const 
       }
       env_ptrs.emplace_back(nullptr);
 
-      execve(argv_ptrs[0], const_cast<char *const *>(argv_ptrs.data()), const_cast<char *const *>(env_ptrs.data()));
+      portable_execvpe(argv_ptrs[0], const_cast<char *const *>(argv_ptrs.data()), const_cast<char *const *>(env_ptrs.data()));
     }
   });
 }
