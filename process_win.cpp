@@ -235,8 +235,11 @@ void Process::async_read() noexcept {
       std::unique_ptr<char[]> buffer(new char[config.buffer_size]);
       for(;;) {
         BOOL bSuccess = ReadFile(*stdout_fd, static_cast<CHAR *>(buffer.get()), static_cast<DWORD>(config.buffer_size), &n, nullptr);
-        if(!bSuccess || n == 0)
+        if(!bSuccess || n == 0) {
+          if(config.on_stdout_close)
+            config.on_stdout_close();
           break;
+        }
         read_stdout(buffer.get(), static_cast<size_t>(n));
       }
     });
@@ -247,8 +250,11 @@ void Process::async_read() noexcept {
       std::unique_ptr<char[]> buffer(new char[config.buffer_size]);
       for(;;) {
         BOOL bSuccess = ReadFile(*stderr_fd, static_cast<CHAR *>(buffer.get()), static_cast<DWORD>(config.buffer_size), &n, nullptr);
-        if(!bSuccess || n == 0)
+        if(!bSuccess || n == 0) {
+          if(config.on_stderr_close)
+            config.on_stderr_close();
           break;
+        }
         read_stderr(buffer.get(), static_cast<size_t>(n));
       }
     });

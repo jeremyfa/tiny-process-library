@@ -248,11 +248,25 @@ void Process::async_read() noexcept {
                 read_stderr(buffer.get(), static_cast<size_t>(n));
             }
             else if(n < 0 && errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
+              if(fd_is_stdout[i]) {
+                if(config.on_stdout_close)
+                  config.on_stdout_close();
+              } else {
+                if(config.on_stderr_close)
+                  config.on_stderr_close();
+              }
               pollfds[i].fd = -1;
               continue;
             }
           }
           if(pollfds[i].revents & (POLLERR | POLLHUP | POLLNVAL)) {
+            if(fd_is_stdout[i]) {
+              if(config.on_stdout_close)
+                config.on_stdout_close();
+            } else {
+              if(config.on_stderr_close)
+                config.on_stderr_close();
+            }
             pollfds[i].fd = -1;
             continue;
           }
