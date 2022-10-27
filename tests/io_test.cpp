@@ -78,6 +78,14 @@ int main() {
   }
 
   {
+    Process process("while true; do sleep 10000; done");
+    int exit_status;
+    assert(!process.try_get_exit_status(exit_status));
+    process.kill();
+    assert(process.get_exit_status() != 0);
+  }
+
+  {
     Process process(
         [] {
           cout << "Test" << endl;
