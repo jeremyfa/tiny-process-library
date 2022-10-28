@@ -106,8 +106,7 @@ static std::basic_string<Char> join_arguments(const std::vector<std::basic_strin
 std::mutex create_process_mutex;
 
 Process::id_type Process::open(const std::vector<string_type> &arguments, const string_type &path, const environment_type *environment) noexcept {
-  string_type command = join_arguments(arguments);
-  return open(command, path, environment);
+  return open(join_arguments(arguments), path, environment);
 }
 
 // Based on the example at https://msdn.microsoft.com/en-us/library/windows/desktop/ms682499(v=vs.85).aspx.
