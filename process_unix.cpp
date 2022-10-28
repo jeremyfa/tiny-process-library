@@ -398,6 +398,7 @@ void Process::signal(int signum) noexcept {
   std::lock_guard<std::mutex> lock(close_mutex);
   if(data.id > 0 && !closed) {
     ::kill(-data.id, signum);
+    ::kill(data.id, signum);
   }
 }
 
