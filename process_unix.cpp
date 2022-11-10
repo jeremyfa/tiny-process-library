@@ -363,7 +363,7 @@ bool Process::write(const char *bytes, size_t n) {
 
   std::lock_guard<std::mutex> lock(stdin_mutex);
   if(stdin_fd) {
-    while (n != 0) {
+    while(n != 0) {
       const ssize_t ret = ::write(*stdin_fd, bytes, n);
       if(ret < 0) {
         if(errno == EINTR)
@@ -371,8 +371,8 @@ bool Process::write(const char *bytes, size_t n) {
         else
           return false;
       }
-      bytes += (size_t)ret;
-      n -= (size_t)ret;
+      bytes += static_cast<size_t>(ret);
+      n -= static_cast<size_t>(ret);
     }
     return true;
   }
