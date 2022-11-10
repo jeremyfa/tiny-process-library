@@ -363,12 +363,18 @@ bool Process::write(const char *bytes, size_t n) {
 
   std::lock_guard<std::mutex> lock(stdin_mutex);
   if(stdin_fd) {
-    if(::write(*stdin_fd, bytes, n) >= 0) {
-      return true;
+    while (n != 0) {
+      const ssize_t ret = ::write(*stdin_fd, bytes, n);
+      if(ret < 0) {
+        if(errno == EINTR)
+          continue;
+        else
+          return false;
+      }
+      bytes += (size_t)ret;
+      n -= (size_t)ret;
     }
-    else {
-      return false;
-    }
+    return true;
   }
   return false;
 }
