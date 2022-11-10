@@ -251,7 +251,8 @@ void Process::async_read() noexcept {
               if(fd_is_stdout[i]) {
                 if(config.on_stdout_close)
                   config.on_stdout_close();
-              } else {
+              }
+              else {
                 if(config.on_stderr_close)
                   config.on_stderr_close();
               }
@@ -263,7 +264,8 @@ void Process::async_read() noexcept {
             if(fd_is_stdout[i]) {
               if(config.on_stdout_close)
                 config.on_stdout_close();
-            } else {
+            }
+            else {
               if(config.on_stderr_close)
                 config.on_stderr_close();
             }
