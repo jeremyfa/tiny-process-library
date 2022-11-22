@@ -247,7 +247,7 @@ void Process::async_read() noexcept {
               else
                 read_stderr(buffer.get(), static_cast<size_t>(n));
             }
-            else if(n < 0 && errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
+            else if(n == 0 || (n < 0 && errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK)) {
               if(fd_is_stdout[i]) {
                 if(config.on_stdout_close)
                   config.on_stdout_close();
