@@ -14,8 +14,7 @@
 
 namespace TinyProcessLib {
 
-static int portable_execvpe(const char *file, char *const argv[],
-                            char *const envp[]) {
+static int portable_execvpe(const char *file, char *const argv[], char *const envp[]) {
 #ifdef __GLIBC__
   // Prefer native implementation.
   return execvpe(file, argv, envp);

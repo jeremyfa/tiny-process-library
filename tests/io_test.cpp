@@ -53,9 +53,11 @@ int main() {
 
   {
     Config config;
-    Process process(std::vector<string>{"echo", "Test"}, "", [output](const char *bytes, size_t n) {
-      *output += string(bytes, n);
-    }, nullptr, false, config);
+    Process process(
+        std::vector<string>{"echo", "Test"}, "", [output](const char *bytes, size_t n) {
+          *output += string(bytes, n);
+        },
+        nullptr, false, config);
     assert(process.get_exit_status() == 0);
     assert(output->substr(0, 4) == "Test");
     output->clear();
