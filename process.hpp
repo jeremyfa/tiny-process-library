@@ -22,10 +22,10 @@ struct Config {
 
   /// If set, invoked when process stdout is closed.
   /// This call goes after last call to read_stdout().
-  std::function<void()> on_stdout_close;
+  std::function<void()> on_stdout_close = nullptr;
   /// If set, invoked when process stderr is closed.
   /// This call goes after last call to read_stderr().
-  std::function<void()> on_stderr_close;
+  std::function<void()> on_stderr_close = nullptr;
 
   /// On Windows only: controls how the process is started, mimics STARTUPINFO's wShowWindow.
   /// See: https://docs.microsoft.com/en-us/windows/desktop/api/processthreadsapi/ns-processthreadsapi-startupinfoa
