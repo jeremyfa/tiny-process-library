@@ -112,6 +112,18 @@ int main() {
     assert(output->substr(0, 4) == "Test");
     output->clear();
   }
+  {
+    Config config;
+    config.buffer_size = 4;
+    Process process(
+        std::vector<string>{"printf", "Hello, world!\nHi, there!"}, {}, [output](const char *bytes, size_t n) {
+          *output += string(bytes, n);
+        },
+        nullptr, false, config);
+    assert(process.get_exit_status() == 0);
+    assert(*output == "Hello, world!\nHi, there!");
+    output->clear();
+  }
 #endif
 
   {
