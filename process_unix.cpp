@@ -351,8 +351,7 @@ void Process::async_read() noexcept {
               pollfds[i].fd = -1;
               continue;
             }
-          }
-          if(pollfds[i].revents & (POLLERR | POLLHUP | POLLNVAL)) {
+          } else if(pollfds[i].revents & (POLLERR | POLLHUP | POLLNVAL)) {
             if(fd_is_stdout[i]) {
               if(config.on_stdout_close)
                 config.on_stdout_close();
