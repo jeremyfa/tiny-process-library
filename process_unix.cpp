@@ -402,8 +402,10 @@ int Process::get_exit_status() noexcept {
 }
 
 bool Process::try_get_exit_status(int &exit_status) noexcept {
-  if(data.id <= 0)
-    return false;
+  if(data.id <= 0) {
+    exit_status = -1;
+    return true;
+  }
 
   const id_type pid = waitpid(data.id, &exit_status, WNOHANG);
   if(pid < 0 && errno == ECHILD) {
