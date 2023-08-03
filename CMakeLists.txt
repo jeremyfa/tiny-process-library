@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.5)
 
 project(tiny-process-library)
 
@@ -30,7 +30,7 @@ endif()
 
 find_package(Threads REQUIRED)
 
-target_link_libraries(tiny-process-library ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(tiny-process-library Threads::Threads)
 target_include_directories(tiny-process-library PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
                                                        $<INSTALL_INTERFACE:include>)
 
