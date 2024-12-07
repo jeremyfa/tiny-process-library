@@ -52,4 +52,18 @@ bool Process::write(const std::string &str) {
   return write(str.c_str(), str.size());
 }
 
+int Process::tick_until_exit_status(const std::function<void()> &tick, int tick_interval_ms) {
+    while (true) {
+        tick();
+
+        int exit_status;
+        if (try_get_exit_status(exit_status)) {
+            tick();
+            return exit_status;
+        }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(tick_interval_ms));
+    }
+}
+
 } // namespace TinyProcessLib

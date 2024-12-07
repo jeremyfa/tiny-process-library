@@ -134,6 +134,8 @@ public:
   id_type get_id() const noexcept;
   /// Wait until process is finished, and return exit status.
   int get_exit_status() noexcept;
+  /// Tick periodically on the current thread, until process is finished, and return exit status.
+  int tick_until_exit_status(const std::function<void()> &tick, int tick_interval_ms = 1);
   /// If process is finished, returns true and sets the exit status. Returns false otherwise.
   bool try_get_exit_status(int &exit_status) noexcept;
   /// Write to stdin.
