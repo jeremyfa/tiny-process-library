@@ -165,23 +165,52 @@ Process::id_type Process::open(const std::function<void()> &function) noexcept {
     return pid;
   }
   else if(pid == 0) {
-    if(stdin_fd)
-      dup2(stdin_p[0], 0);
-    if(stdout_fd)
-      dup2(stdout_p[1], 1);
-    if(stderr_fd)
-      dup2(stderr_p[1], 2);
-    if(stdin_fd) {
-      close(stdin_p[0]);
-      close(stdin_p[1]);
-    }
-    if(stdout_fd) {
-      close(stdout_p[0]);
-      close(stdout_p[1]);
-    }
-    if(stderr_fd) {
-      close(stderr_p[0]);
-      close(stderr_p[1]);
+    if(config.detach_process) {
+      // Close all pipes as we're detaching
+      if(stdin_fd) {
+        close(stdin_p[0]);
+        close(stdin_p[1]);
+      }
+      if(stdout_fd) {
+        close(stdout_p[0]);
+        close(stdout_p[1]);
+      }
+      if(stderr_fd) {
+        close(stderr_p[0]);
+        close(stderr_p[1]);
+      }
+
+      // Create new session
+      setsid();
+
+      // Fork again so the session leader can exit
+      pid = fork();
+      if(pid < 0) {
+        _exit(EXIT_FAILURE);
+      }
+      if(pid > 0) {
+        _exit(EXIT_SUCCESS);
+      }
+    } else {
+      // Normal non-detached behavior
+      if(stdin_fd)
+        dup2(stdin_p[0], 0);
+      if(stdout_fd)
+        dup2(stdout_p[1], 1);
+      if(stderr_fd)
+        dup2(stderr_p[1], 2);
+      if(stdin_fd) {
+        close(stdin_p[0]);
+        close(stdin_p[1]);
+      }
+      if(stdout_fd) {
+        close(stdout_p[0]);
+        close(stdout_p[1]);
+      }
+      if(stderr_fd) {
+        close(stderr_p[0]);
+        close(stderr_p[1]);
+      }
     }
 
     if(!config.inherit_file_descriptors) {
@@ -194,6 +223,7 @@ Process::id_type Process::open(const std::function<void()> &function) noexcept {
     }
 
     setpgid(0, 0);
+
     // TODO: See here on how to emulate tty for colors: http://stackoverflow.com/questions/1401002/trick-an-application-into-thinking-its-stdin-is-interactive-not-a-pipe
     // TODO: One solution is: echo "command;exit"|script -q /dev/null
 

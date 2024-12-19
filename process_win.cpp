@@ -111,12 +111,14 @@ Process::id_type Process::open(const std::vector<string_type> &arguments, const 
 
 // Based on the example at https://msdn.microsoft.com/en-us/library/windows/desktop/ms682499(v=vs.85).aspx.
 Process::id_type Process::open(const string_type &command, const string_type &path, const environment_type *environment) noexcept {
-  if(open_stdin)
-    stdin_fd = std::unique_ptr<fd_type>(new fd_type(nullptr));
-  if(read_stdout)
-    stdout_fd = std::unique_ptr<fd_type>(new fd_type(nullptr));
-  if(read_stderr)
-    stderr_fd = std::unique_ptr<fd_type>(new fd_type(nullptr));
+  if(!config.detach_process) {
+    if(open_stdin)
+      stdin_fd = std::unique_ptr<fd_type>(new fd_type(nullptr));
+    if(read_stdout)
+      stdout_fd = std::unique_ptr<fd_type>(new fd_type(nullptr));
+    if(read_stderr)
+      stderr_fd = std::unique_ptr<fd_type>(new fd_type(nullptr));
+  }
 
   Handle stdin_rd_p;
   Handle stdin_wr_p;
@@ -132,21 +134,23 @@ Process::id_type Process::open(const string_type &command, const string_type &pa
   security_attributes.lpSecurityDescriptor = nullptr;
 
   std::lock_guard<std::mutex> lock(create_process_mutex);
-  if(stdin_fd) {
-    if(!CreatePipe(&stdin_rd_p, &stdin_wr_p, &security_attributes, 0) ||
-       !SetHandleInformation(stdin_wr_p, HANDLE_FLAG_INHERIT, 0))
-      return 0;
-  }
-  if(stdout_fd) {
-    if(!CreatePipe(&stdout_rd_p, &stdout_wr_p, &security_attributes, 0) ||
-       !SetHandleInformation(stdout_rd_p, HANDLE_FLAG_INHERIT, 0)) {
-      return 0;
+  if(!config.detach_process) {
+    if(stdin_fd) {
+      if(!CreatePipe(&stdin_rd_p, &stdin_wr_p, &security_attributes, 0) ||
+         !SetHandleInformation(stdin_wr_p, HANDLE_FLAG_INHERIT, 0))
+        return 0;
     }
-  }
-  if(stderr_fd) {
-    if(!CreatePipe(&stderr_rd_p, &stderr_wr_p, &security_attributes, 0) ||
-       !SetHandleInformation(stderr_rd_p, HANDLE_FLAG_INHERIT, 0)) {
-      return 0;
+    if(stdout_fd) {
+      if(!CreatePipe(&stdout_rd_p, &stdout_wr_p, &security_attributes, 0) ||
+         !SetHandleInformation(stdout_rd_p, HANDLE_FLAG_INHERIT, 0)) {
+        return 0;
+      }
+    }
+    if(stderr_fd) {
+      if(!CreatePipe(&stderr_rd_p, &stderr_wr_p, &security_attributes, 0) ||
+         !SetHandleInformation(stderr_rd_p, HANDLE_FLAG_INHERIT, 0)) {
+        return 0;
+      }
     }
   }
 
@@ -157,11 +161,13 @@ Process::id_type Process::open(const string_type &command, const string_type &pa
 
   ZeroMemory(&startup_info, sizeof(STARTUPINFO));
   startup_info.cb = sizeof(STARTUPINFO);
-  startup_info.hStdInput = stdin_rd_p;
-  startup_info.hStdOutput = stdout_wr_p;
-  startup_info.hStdError = stderr_wr_p;
-  if(stdin_fd || stdout_fd || stderr_fd)
-    startup_info.dwFlags |= STARTF_USESTDHANDLES;
+  if(!config.detach_process) {
+    startup_info.hStdInput = stdin_rd_p;
+    startup_info.hStdOutput = stdout_wr_p;
+    startup_info.hStdError = stderr_wr_p;
+    if(stdin_fd || stdout_fd || stderr_fd)
+      startup_info.dwFlags |= STARTF_USESTDHANDLES;
+  }
 
   if(config.show_window != Config::ShowWindow::show_default) {
     startup_info.dwFlags |= STARTF_USESHOWWINDOW;
@@ -184,7 +190,9 @@ Process::id_type Process::open(const string_type &command, const string_type &pa
   process_command += "\"";
 #endif
 
-  DWORD creation_flags = stdin_fd || stdout_fd || stderr_fd ? CREATE_NO_WINDOW : 0; // CREATE_NO_WINDOW cannot be used when stdout or stderr is redirected to parent process
+  DWORD creation_flags = config.detach_process ? DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP :
+                       (stdin_fd || stdout_fd || stderr_fd ? CREATE_NO_WINDOW : 0); // CREATE_NO_WINDOW cannot be used when stdout or stderr is redirected to parent process
+
   string_type environment_str;
   if(environment) {
 #ifdef UNICODE
@@ -200,8 +208,9 @@ Process::id_type Process::open(const string_type &command, const string_type &pa
       environment_str += '\0';
 #endif
   }
+
   BOOL bSuccess = CreateProcess(nullptr, process_command.empty() ? nullptr : &process_command[0], nullptr, nullptr,
-                                stdin_fd || stdout_fd || stderr_fd || config.inherit_file_descriptors, // Cannot be false when stdout, stderr or stdin is used
+                                !config.detach_process && (stdin_fd || stdout_fd || stderr_fd || config.inherit_file_descriptors), // Cannot be false when stdout, stderr or stdin is used
                                 creation_flags,
                                 environment_str.empty() ? nullptr : &environment_str[0],
                                 path.empty() ? nullptr : path.c_str(),
@@ -212,14 +221,17 @@ Process::id_type Process::open(const string_type &command, const string_type &pa
   else
     CloseHandle(process_info.hThread);
 
-  if(stdin_fd)
-    *stdin_fd = stdin_wr_p.detach();
-  if(stdout_fd)
-    *stdout_fd = stdout_rd_p.detach();
-  if(stderr_fd)
-    *stderr_fd = stderr_rd_p.detach();
+  if(!config.detach_process) {
+    if(stdin_fd)
+      *stdin_fd = stdin_wr_p.detach();
+    if(stdout_fd)
+      *stdout_fd = stdout_rd_p.detach();
+    if(stderr_fd)
+      *stderr_fd = stderr_rd_p.detach();
 
-  closed = false;
+    closed = false;
+  }
+
   data.id = process_info.dwProcessId;
   data.handle = process_info.hProcess;
   return process_info.dwProcessId;

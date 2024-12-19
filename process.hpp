@@ -53,6 +53,12 @@ struct Config {
   /// Requires the flatpak `org.freedesktop.Flatpak` portal to be opened for the current sandbox.
   /// See https://docs.flatpak.org/en/latest/flatpak-command-reference.html#flatpak-spawn.
   bool flatpak_spawn_host = false;
+
+  /// If true, detach the process from the parent. When detaching:
+  /// - On Unix: process runs in new session via setsid()
+  /// - On Windows: process runs in new session via DETACHED_PROCESS
+  /// Note: stdin/stdout/stderr callbacks won't work with detached processes
+  bool detach_process = false;
 };
 
 /// Platform independent class for creating processes.
