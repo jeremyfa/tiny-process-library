@@ -516,12 +516,24 @@ void Process::kill(bool force) noexcept {
   std::lock_guard<std::mutex> lock(close_mutex);
   if(data.id > 0 && !closed) {
     if(force) {
+      // Try SIGTERM first
       ::kill(-data.id, SIGTERM);
       ::kill(data.id, SIGTERM); // Based on comment in https://gitlab.com/eidheim/tiny-process-library/-/merge_requests/29#note_1146144166
-    }
-    else {
-      ::kill(-data.id, SIGINT);
-      ::kill(data.id, SIGINT);
+
+      // Start a detached thread to handle SIGKILL fallback
+      id_type id = data.id;
+      std::thread([id] {
+        // Give process 2 seconds to terminate gracefully
+        // TODO: make this configurable?
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+
+        // Send SIGKILL if process might still be running
+        ::kill(-id, SIGKILL);
+        ::kill(id, SIGKILL);
+      }).detach();
+    } else {
+        ::kill(-data.id, SIGINT);
+        ::kill(data.id, SIGINT);
     }
   }
 }

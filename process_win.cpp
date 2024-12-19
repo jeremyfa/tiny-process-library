@@ -383,24 +383,50 @@ void Process::close_stdin() noexcept {
 void Process::kill(bool /*force*/) noexcept {
   std::lock_guard<std::mutex> lock(close_mutex);
   if(data.id > 0 && !closed) {
+    // First try to create a job object (Windows 8+ preferred method)
+    HANDLE job = CreateJobObject(NULL, NULL);
+    if (job) {
+      JOBOBJECT_EXTENDED_LIMIT_INFORMATION jeli = {0};
+      jeli.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+
+      if (SetInformationJobObject(job, JobObjectExtendedLimitInformation,
+                                &jeli, sizeof(jeli))) {
+        if (AssignProcessToJobObject(job, data.handle)) {
+          CloseHandle(job); // This will kill all processes in the job
+          return;
+        }
+      }
+      CloseHandle(job);
+    }
+
+    // Fallback: recursively kill process tree
     HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if(snapshot) {
+      std::vector<DWORD> to_kill;
       PROCESSENTRY32 process;
       ZeroMemory(&process, sizeof(process));
       process.dwSize = sizeof(process);
+
       if(Process32First(snapshot, &process)) {
         do {
           if(process.th32ParentProcessID == data.id) {
-            HANDLE process_handle = OpenProcess(PROCESS_TERMINATE, FALSE, process.th32ProcessID);
-            if(process_handle) {
-              TerminateProcess(process_handle, 2);
-              CloseHandle(process_handle);
-            }
+            to_kill.push_back(process.th32ProcessID);
           }
         } while(Process32Next(snapshot, &process));
       }
+
+      // Kill children first
+      for(auto pid : to_kill) {
+        HANDLE child = OpenProcess(PROCESS_TERMINATE, FALSE, pid);
+        if(child) {
+          TerminateProcess(child, 2);
+          CloseHandle(child);
+        }
+      }
+
       CloseHandle(snapshot);
     }
+    // Finally terminate the main process
     TerminateProcess(data.handle, 2);
   }
 }
